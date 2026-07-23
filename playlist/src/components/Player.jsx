@@ -11,7 +11,11 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
 
+const BASE_URL = import.meta.env.VITE_API_URL ?? "";
+
 const Player = ({ audio, duration, prevId, nextId, queueParam, posParam, playlistId }) => {
+  // Se a URL de áudio for relativa (/api/...), prefixamos com a URL do backend
+  const audioSrc = audio?.startsWith("/api") ? `${BASE_URL}${audio}` : audio;
   const audioRef        = useRef(null);
   const [isPlaying, setIsPlaying]         = useState(false);
   const [currentTime, setCurrentTime]     = useState(0);
@@ -46,7 +50,7 @@ const Player = ({ audio, duration, prevId, nextId, queueParam, posParam, playlis
   // Aguarda o evento 'canplay' antes de chamar play() para evitar AbortError
   useEffect(() => {
     const el = audioRef.current;
-    if (!el || !audio) return;
+    if (!el || !audioSrc) return;
 
     setCurrentTime(0);
     setTotalDuration(0);
@@ -55,17 +59,17 @@ const Player = ({ audio, duration, prevId, nextId, queueParam, posParam, playlis
     const handleCanPlay = () => {
       el.play()
         .then(() => setIsPlaying(true))
-        .catch(() => setIsPlaying(false)); // autoplay bloqueado pelo browser — ok
+        .catch(() => setIsPlaying(false));
     };
 
     el.addEventListener("canplay", handleCanPlay, { once: true });
-    el.load(); // força o browser a buscar o novo src
-    el.volume = volume; // restaura o volume salvo
+    el.load();
+    el.volume = volume;
 
     return () => {
       el.removeEventListener("canplay", handleCanPlay);
     };
-  }, [audio]);
+  }, [audioSrc]);
 
   const togglePlay = () => {
     const el = audioRef.current;
@@ -135,9 +139,9 @@ const Player = ({ audio, duration, prevId, nextId, queueParam, posParam, playlis
         sempre que o src mudar — garante que não há src residual do áudio anterior
       */}
       <audio
-        key={audio}
+        key={audioSrc}
         ref={audioRef}
-        src={audio}
+        src={audioSrc}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={handleEnded}
