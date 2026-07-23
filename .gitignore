@@ -1,0 +1,13 @@
+node_modules/
+.env
+.env.*
+.DS_Store
+.idea/
+.vscode/
+
+# Scripts utilitários com credenciais (já rodaram, não precisam ir ao GitHub)
+add-new-artists.mjs
+fix-artist-images.mjs
+seed-playlists.mjs
+deezer-migration.mjs
+deezer-migration.ps1
