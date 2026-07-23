@@ -115,9 +115,3 @@ SpotfyClone/
         ├── dto/
         └── config/
 ```
-
----
-
-## License
-
-MIT
