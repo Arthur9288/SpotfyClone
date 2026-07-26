@@ -54,31 +54,37 @@ public class SongService {
     public String getFreshAudioUrl(Long id) {
         Song song = songRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Música não encontrada: id=" + id));
-        
+
         String artistName = song.getArtist() != null ? song.getArtist().getName() : "";
-        String query = "track:\"" + song.getName() + "\" artist:\"" + artistName + "\"";
-        String deezerUrl = "https://api.deezer.com/search?q=" + query;
-        
+        // iTunes Search API — gratuita, sem bloqueio de CDN
+        String term = java.net.URLEncoder.encode(song.getName() + " " + artistName, java.nio.charset.StandardCharsets.UTF_8);
+        String itunesUrl = "https://itunes.apple.com/search?term=" + term + "&entity=musicTrack&limit=5";
+
         try {
-            org.springframework.http.client.SimpleClientHttpRequestFactory factory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
-            factory.setConnectTimeout(2000);
-            factory.setReadTimeout(2000);
+            org.springframework.http.client.SimpleClientHttpRequestFactory factory =
+                    new org.springframework.http.client.SimpleClientHttpRequestFactory();
+            factory.setConnectTimeout(3000);
+            factory.setReadTimeout(5000);
             RestTemplate restTemplate = new RestTemplate(factory);
-            Map response = restTemplate.getForObject(deezerUrl, Map.class);
-            if (response != null && response.containsKey("data")) {
-                List<Map<String, Object>> data = (List<Map<String, Object>>) response.get("data");
-                if (data != null && !data.isEmpty()) {
-                    String preview = (String) data.get(0).get("preview");
-                    if (preview != null && !preview.isBlank()) {
-                        return preview;
+
+            Map response = restTemplate.getForObject(itunesUrl, Map.class);
+            if (response != null && response.containsKey("results")) {
+                List<Map<String, Object>> results = (List<Map<String, Object>>) response.get("results");
+                if (results != null) {
+                    for (Map<String, Object> track : results) {
+                        String preview = (String) track.get("previewUrl");
+                        if (preview != null && !preview.isBlank()) {
+                            System.out.println("iTunes preview encontrado: " + preview);
+                            return preview;
+                        }
                     }
                 }
             }
         } catch (Exception e) {
-            System.err.println("Falha ao buscar áudio na Deezer: " + e.getMessage());
+            System.err.println("Falha ao buscar áudio no iTunes: " + e.getMessage());
         }
-        
-        // Fallback: retorna a URL que está no banco caso a Deezer falhe
+
+        // Fallback: URL salva no banco
         return song.getAudioUrl();
     }
 
