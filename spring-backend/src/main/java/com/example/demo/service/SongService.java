@@ -67,15 +67,23 @@ public class SongService {
             factory.setReadTimeout(5000);
             RestTemplate restTemplate = new RestTemplate(factory);
 
-            Map response = restTemplate.getForObject(itunesUrl, Map.class);
-            if (response != null && response.containsKey("results")) {
-                List<Map<String, Object>> results = (List<Map<String, Object>>) response.get("results");
-                if (results != null) {
-                    for (Map<String, Object> track : results) {
-                        String preview = (String) track.get("previewUrl");
-                        if (preview != null && !preview.isBlank()) {
-                            System.out.println("iTunes preview encontrado: " + preview);
-                            return preview;
+            // A API do iTunes retorna Content-Type "text/javascript", que faz o RestTemplate travar
+            // se tentarmos converter direto para Map.class. Lemos como String e convertemos manualmente.
+            String jsonResponse = restTemplate.getForObject(itunesUrl, String.class);
+            
+            if (jsonResponse != null && !jsonResponse.isBlank()) {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                Map response = mapper.readValue(jsonResponse, Map.class);
+                
+                if (response != null && response.containsKey("results")) {
+                    List<Map<String, Object>> results = (List<Map<String, Object>>) response.get("results");
+                    if (results != null) {
+                        for (Map<String, Object> track : results) {
+                            String preview = (String) track.get("previewUrl");
+                            if (preview != null && !preview.isBlank()) {
+                                System.out.println("iTunes preview encontrado: " + preview);
+                                return preview;
+                            }
                         }
                     }
                 }
