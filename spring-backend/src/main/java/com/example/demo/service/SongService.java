@@ -68,24 +68,16 @@ public class SongService {
             RestTemplate restTemplate = new RestTemplate(factory);
 
             // A API do iTunes retorna Content-Type "text/javascript", que faz o RestTemplate travar
-            // se tentarmos converter direto para Map.class. Lemos como String e convertemos manualmente.
+            // se tentarmos converter direto para Map.class. Lemos como String e extraímos via Regex
+            // para evitar problemas de compilação com dependências do Jackson no Railway.
             String jsonResponse = restTemplate.getForObject(itunesUrl, String.class);
             
             if (jsonResponse != null && !jsonResponse.isBlank()) {
-                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-                Map response = mapper.readValue(jsonResponse, Map.class);
-                
-                if (response != null && response.containsKey("results")) {
-                    List<Map<String, Object>> results = (List<Map<String, Object>>) response.get("results");
-                    if (results != null) {
-                        for (Map<String, Object> track : results) {
-                            String preview = (String) track.get("previewUrl");
-                            if (preview != null && !preview.isBlank()) {
-                                System.out.println("iTunes preview encontrado: " + preview);
-                                return preview;
-                            }
-                        }
-                    }
+                java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("\"previewUrl\":\"([^\"]+)\"").matcher(jsonResponse);
+                if (matcher.find()) {
+                    String preview = matcher.group(1);
+                    System.out.println("iTunes preview encontrado: " + preview);
+                    return preview;
                 }
             }
         } catch (Exception e) {
