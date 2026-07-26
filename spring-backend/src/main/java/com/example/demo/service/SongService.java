@@ -60,7 +60,10 @@ public class SongService {
         String deezerUrl = "https://api.deezer.com/search?q=" + query;
         
         try {
-            RestTemplate restTemplate = new RestTemplate();
+            org.springframework.http.client.SimpleClientHttpRequestFactory factory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
+            factory.setConnectTimeout(2000);
+            factory.setReadTimeout(2000);
+            RestTemplate restTemplate = new RestTemplate(factory);
             Map response = restTemplate.getForObject(deezerUrl, Map.class);
             if (response != null && response.containsKey("data")) {
                 List<Map<String, Object>> data = (List<Map<String, Object>>) response.get("data");
