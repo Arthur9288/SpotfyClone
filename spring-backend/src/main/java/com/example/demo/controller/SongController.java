@@ -45,13 +45,42 @@ public class SongController {
 
     /**
      * GET /api/songs/{id}/audio
-     * Proxy dinâmico: busca a música na Deezer em tempo real e redireciona (302) o player de áudio.
+     * Proxy real: baixa o áudio do Deezer no servidor e repassa ao browser.
+     * Evita bloqueio da CDN Akamai que ocorre com redirect 302.
      */
     @GetMapping("/{id}/audio")
-    public ResponseEntity<Void> getAudioStream(@PathVariable Long id) {
+    public ResponseEntity<byte[]> getAudioStream(@PathVariable Long id) {
         String freshUrl = songService.getFreshAudioUrl(id);
-        return ResponseEntity.status(org.springframework.http.HttpStatus.FOUND)
-                .location(java.net.URI.create(freshUrl))
-                .build();
+        try {
+            org.springframework.http.client.SimpleClientHttpRequestFactory factory =
+                    new org.springframework.http.client.SimpleClientHttpRequestFactory();
+            factory.setConnectTimeout(3000);
+            factory.setReadTimeout(10000);
+
+            org.springframework.web.client.RestTemplate restTemplate =
+                    new org.springframework.web.client.RestTemplate(factory);
+
+            // Monta o request com User-Agent de browser para não ser bloqueado pela CDN
+            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+            headers.set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36");
+            org.springframework.http.HttpEntity<Void> entity = new org.springframework.http.HttpEntity<>(headers);
+
+            ResponseEntity<byte[]> deezerResponse = restTemplate.exchange(
+                    freshUrl,
+                    org.springframework.http.HttpMethod.GET,
+                    entity,
+                    byte[].class
+            );
+
+            return ResponseEntity.ok()
+                    .contentType(org.springframework.http.MediaType.parseMediaType("audio/mpeg"))
+                    .header("Accept-Ranges", "bytes")
+                    .header("Cache-Control", "no-cache")
+                    .body(deezerResponse.getBody());
+
+        } catch (Exception e) {
+            System.err.println("Erro ao fazer proxy do áudio: " + e.getMessage());
+            return ResponseEntity.notFound().build();
+        }
     }
 }
